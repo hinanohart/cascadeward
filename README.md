@@ -100,10 +100,11 @@ points and is on the v0.2 roadmap.
 ## How it works
 
 1. **Ingest** a trace → canonical marked event stream (`events.py`).
-2. **Fit** a marked exponential Hawkes with a **time-varying piecewise-constant
+2. **Fit** an exponential Hawkes with a **time-varying piecewise-constant
    background `μ(t)`** by multi-start MLE (the time-varying background matters:
    a single *stationary* kernel is biased under non-stationarity — Filimonov &
-   Sornette 2015, arXiv:1308.6756).
+   Sornette 2015, arXiv:1308.6756). *v0.1 fits the unmarked process; event marks
+   (`freed_blocks`, …) are captured for mark-weighted excitation in v0.2.*
 3. **Bootstrap** a CI for `n` by exact immigration-birth simulation + refit.
 4. **Decluster** (Zhuang background probability) → endogeneity.
 5. **Self-veto** (Filimonov–Sornette) on too-few events, wide/critical-crossing

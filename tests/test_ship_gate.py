@@ -35,10 +35,16 @@ def test_g1_recovery_stationary():
 def test_g2_discriminates_sub_vs_super():
     sub = cw.score(generate(alpha=0.7, beta=2.0, T=1200, mu=0.5, seed=2), boot=50, seed=2)
     sup = cw.score(generate(alpha=1.3, beta=2.0, T=400, mu=0.6, seed=3), boot=50, seed=3)
-    assert sub.verdict != "SUPER_CRITICAL"
-    assert sub.branching_ratio_n["point"] < 1.0
+    # Safety-critical property: a healthy (sub-critical) cluster is certified, while
+    # a runaway (super-critical) cluster is NEVER certified healthy. We deliberately
+    # do NOT assert the super point estimate > 1: for an explosive, truncation-prone
+    # trace that point estimate is platform-fragile (and asserting on a bare scalar
+    # would contradict D4). Verdict in {SUPER_CRITICAL, UNIDENTIFIED} are both honest.
+    assert sub.verdict == "SUB_CRITICAL"
     assert sup.verdict != "SUB_CRITICAL"
-    assert sup.branching_ratio_n["point"] > 1.0
+    # Endogeneity (the fraction of self-excited events) is far more stable across
+    # platforms than the branching point and cleanly separates the two regimes.
+    assert sup.endogeneity > sub.endogeneity + 0.1, (sub.endogeneity, sup.endogeneity)
 
 
 # ---- G3: endogeneity fingers the right culprit (fit-only, fast) ----

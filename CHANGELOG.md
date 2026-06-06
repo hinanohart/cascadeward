@@ -10,10 +10,13 @@ First alpha. A measurement instrument, not a control or remediation system.
 ### Added
 - Canonical marked temporal point-process event model (`events.py`) with a
   first-class `Fidelity` enum (`NATIVE_EVENT` / `RECONSTRUCTED` / `AGGREGATE`).
-- Marked exponential Hawkes likelihood with a **time-varying piecewise-constant
-  background rate μ(t)** and right-censored compensator (`pp/`).
+  Marks (`freed_blocks`, `recompute_tokens`) are parsed and carried; the v0.1
+  *estimator* is unmarked (see Deferred).
+- Exponential Hawkes likelihood (unmarked in v0.1) with a **time-varying
+  piecewise-constant background rate μ(t)** and a right-censored compensator (`pp/`).
 - MLE fit with softplus reparameterisation and multi-start (recovers super-critical
   `n ≥ 1`), exact immigration-birth simulator, and parametric bootstrap CIs.
+  Optimisation is finite-difference (numerically robust; recovers ground truth).
 - Endogeneity (Zhuang background probability) and a time-rescaling KS
   goodness-of-fit check.
 - Branching ratio `n` reported as a **3-level verdict (SUB / NEAR-CRITICAL / SUPER)
@@ -27,6 +30,13 @@ First alpha. A measurement instrument, not a control or remediation system.
 - Honest-marketing gate (`_claims.py`) enforced in CI.
 
 ### Deferred to v0.2 (explicitly out of scope for a1)
+- **Marked excitation weighting** `g(m)` over `freed_blocks` / `recompute_tokens`
+  and the `--mark none|blocks` flag. v0.1 fits the unmarked exp-Hawkes; the marks
+  are already captured in the data model so weighting can be added without a
+  schema change.
+- **Analytic gradient** for the exponential kernel. v0.1 uses finite-difference
+  (it recovers ground truth in the SHIP GATE); the analytic gradient is a speed
+  optimisation, not a correctness one.
 - `watch` live stream detection.
 - `vllm_prom` Prometheus counter-diff adapter (RECONSTRUCTED fidelity).
 - Omori power-law kernel, full Zhuang EM, mark-contribution decomposition.

@@ -1,4 +1,4 @@
-"""Marked exponential-Hawkes log-likelihood with time-varying background.
+"""Exponential-Hawkes log-likelihood with time-varying background (unmarked, v0.1).
 
 Intensity:  lambda(t) = mu(t) + sum_{t_i < t} alpha * beta * exp(-beta (t - t_i))
 Log-lik:    sum_i log lambda(t_i) - int_{0}^{T} lambda
