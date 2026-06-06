@@ -3,6 +3,37 @@
 All notable changes to cascadeward are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/); versions use PEP 440.
 
+## [0.1.0a2] - 2026-06-06
+
+Post-release audit hardening (three-agent review). No change to the estimator
+math or any SHIP GATE verdict; all fixes are additive guards and contract fixes.
+
+### Fixed
+- **Report schema contract**: the `AGGREGATE`-refusal report now carries the same
+  `branching_ratio_n` key set as a normal fit (it was missing `n_explode`), so a
+  consumer reading `branching_ratio_n["n_explode"]` no longer `KeyError`s on a
+  refusal. The refusal now also reports the real `n_jittered` count. A new
+  `boot_requested` key makes the explosion fraction (`n_explode / boot_requested`)
+  computable from JSON — `boot_B` is the *effective* (successfully-refit) sample.
+- **`report_to_dict`** no longer treats a dataclass *type* as an instance, and
+  raises a clear `TypeError` on unsupported input instead of an obscure failure.
+- **vLLM log ingest** refuses a trace whose MM-DD timestamps roll backwards over
+  a year boundary (the year-free surrogate axis cannot represent it) rather than
+  silently emitting negative inter-event gaps.
+- MLE "failed from any start" now surfaces the last optimiser error for diagnosis.
+
+### Added
+- **Identifiability trigger (7) — bootstrap explosion bias**: if the majority of
+  bootstrap replicates ran away to the event cap *yet the CI still came back
+  sub-critical*, the verdict is withheld (`UNIDENTIFIED`) — that CI is taken over
+  a truncated, downward-biased subset. A bootstrap that explodes but whose CI is
+  itself super-critical still reports `SUPER_CRITICAL`: the alarm is never muted.
+- The pre-registered veto thresholds are now named module-level constants
+  (auditable/greppable), not inline literals.
+
+### Deferred to v0.2
+- A `mypy` type-check CI gate (the package ships `py.typed`).
+
 ## [0.1.0a1] - 2026-06-06
 
 First alpha. A measurement instrument, not a control or remediation system.

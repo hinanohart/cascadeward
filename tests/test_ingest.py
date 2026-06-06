@@ -33,6 +33,21 @@ def test_vllm_log_no_preemptions_raises(tmp_path):
         parse_vllm_log(str(p))
 
 
+def test_vllm_log_year_boundary_refused(tmp_path):
+    # the year-free MM-DD axis cannot represent a Dec->Jan rollover; the parser
+    # must refuse rather than emit silently-negative inter-event gaps.
+    log = (
+        "WARNING 12-31 23:59:58 scheduler.py:1680] Sequence group 1 is preempted by "
+        "PreemptionMode.RECOMPUTE mode because there is not enough KV cache space.\n"
+        "WARNING 01-01 00:00:01 scheduler.py:1680] Sequence group 2 is preempted by "
+        "PreemptionMode.RECOMPUTE mode because there is not enough KV cache space.\n"
+    )
+    p = tmp_path / "newyear.log"
+    p.write_text(log, encoding="utf-8")
+    with pytest.raises(ValueError, match="non-monotonic"):
+        parse_vllm_log(str(p))
+
+
 def test_jsonl_parses(tmp_path):
     p = tmp_path / "trace.jsonl"
     lines = [

@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "cascadeward"
-version = "0.1.0a1"
+version = "0.1.0a2"
 description = "Measure preemption/recompute storm criticality in LLM serving traces via self-exciting point processes (CPU, model-free)."
 readme = "README.md"
 requires-python = ">=3.11"

@@ -111,8 +111,10 @@ points and is on the v0.2 roadmap.
 3. **Bootstrap** a CI for `n` by exact immigration-birth simulation + refit.
 4. **Decluster** (Zhuang background probability) → endogeneity.
 5. **Self-veto** (Filimonov–Sornette) on too-few events, wide/critical-crossing
-   CI, near-critical instability, unidentified timescale, or kernel
-   misspecification (time-rescaling KS) → possibly `UNIDENTIFIED`.
+   CI, near-critical instability, unidentified timescale, kernel
+   misspecification (time-rescaling KS), or bootstrap-explosion bias (most
+   replicates ran away yet the CI came back sub-critical) → possibly
+   `UNIDENTIFIED`.
 6. **Report** a versioned JSON / text verdict.
 
 ## Honest limits

@@ -52,7 +52,17 @@ class CriticalityReport:
 def _aggregate_refusal(stream: EventStream, info: dict) -> CriticalityReport:
     return CriticalityReport(
         verdict="UNIDENTIFIED",
-        branching_ratio_n={"point": None, "ci": [None, None], "level": "n/a", "boot_B": 0},
+        # Keep the same key set as the normal fit path (schema_version
+        # "cascadeward-report/1" is a contract): a consumer must be able to read
+        # ``branching_ratio_n["n_explode"]`` on every report, refusal included.
+        branching_ratio_n={
+            "point": None,
+            "ci": [None, None],
+            "level": "n/a",
+            "boot_B": 0,
+            "boot_requested": 0,
+            "n_explode": 0,
+        },
         endogeneity=float("nan"),
         kernel={"type": "exp", "beta": None, "beta_cv": None, "n_blocks": 0},
         identifiability={
@@ -69,7 +79,7 @@ def _aggregate_refusal(stream: EventStream, info: dict) -> CriticalityReport:
             "fidelity": stream.fidelity.value,
             "source": stream.source,
             "window_s": round(float(stream.duration), 4),
-            "n_jittered": 0,
+            "n_jittered": info["n_jittered"],
         },
         determinism={"seed": None, "reproducible": True},
         _exit_code=20,
@@ -108,6 +118,8 @@ def score(
         beta=params.beta,
         beta_cv=boot_res["beta_cv"],
         ks_p=ks_p,
+        n_explode=boot_res["n_explode"],
+        boot_B=boot,
     )
     if not diag["converged"]:
         ident.vetoes.append("optimizer_not_converged")
@@ -129,7 +141,11 @@ def score(
             "point": _round(params.n),
             "ci": [_round(boot_res["lo"]), _round(boot_res["hi"])],
             "level": level,
+            # boot_B = replicates that survived to a successful refit (the CI's
+            # effective sample); boot_requested = replicates attempted (the
+            # denominator for the explosion fraction n_explode / boot_requested).
             "boot_B": boot_res["B_effective"],
+            "boot_requested": boot,
             "n_explode": boot_res["n_explode"],
         },
         endogeneity=_round(endo),
