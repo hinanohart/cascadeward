@@ -63,6 +63,17 @@ def parse_vllm_log(path: str) -> EventStream:
             f"no vLLM preemption lines found in {path} "
             "(need scheduler WARNING lines; ensure disable_log_stats=False)"
         )
+    # The MM-DD surrogate axis (see _ts_to_seconds) is monotone within a year but
+    # jumps backwards by ~a year of seconds at a Dec->Jan rollover. Detect that
+    # large backward step and refuse, rather than silently emitting negative
+    # inter-event gaps that normalisation would launder into a garbage fit.
+    for prev, cur in zip(times, times[1:], strict=False):
+        if cur < prev - 86400.0:
+            raise ValueError(
+                f"non-monotonic vLLM timestamps in {path}: {prev:.1f} -> {cur:.1f} "
+                "(>1 day backwards). The year-free MM-DD axis cannot span a year "
+                "boundary; split the log so each file stays within one calendar year."
+            )
     return EventStream(
         events=tuple(events),
         t0=min(times),

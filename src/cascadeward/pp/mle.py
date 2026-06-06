@@ -68,6 +68,7 @@ def fit_hawkes(times, T: float, n_blocks: int = 1, n_starts: int = 8, seed: int 
     starts = starts[:n_starts]
 
     best = None
+    last_err: Exception | None = None
     for mu0, a0, b0 in starts:
         theta0 = np.concatenate(
             [[_inv_softplus(m) for m in mu0], [_inv_softplus(a0), _inv_softplus(b0)]]
@@ -78,7 +79,8 @@ def fit_hawkes(times, T: float, n_blocks: int = 1, n_starts: int = 8, seed: int 
                 theta0,
                 method="L-BFGS-B",
             )
-        except Exception:
+        except Exception as e:  # one bad start must not kill the fit
+            last_err = e
             continue
         if not np.isfinite(res.fun):
             continue
@@ -86,7 +88,8 @@ def fit_hawkes(times, T: float, n_blocks: int = 1, n_starts: int = 8, seed: int 
             best = res
 
     if best is None:
-        raise RuntimeError("Hawkes MLE failed to converge from any start")
+        detail = f" (last start error: {last_err!r})" if last_err is not None else ""
+        raise RuntimeError(f"Hawkes MLE failed to converge from any start{detail}")
 
     params = _unpack(best.x, n_blocks, edges)
     diag = {
