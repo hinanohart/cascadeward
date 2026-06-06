@@ -39,12 +39,15 @@ cascadeward is easy to confuse with three neighbours; it is none of them:
 
 ## Install
 
+`cascadeward` is an early `v0.1.0a1` pre-release published on GitHub (it is not
+on PyPI yet). Install it straight from the tagged release:
+
 ```bash
-pip install cascadeward          # core: numpy + scipy, CPU-only
-pip install "cascadeward[viz]"   # + matplotlib plots
+pip install "git+https://github.com/hinanohart/cascadeward@v0.1.0a1"          # core: numpy + scipy, CPU-only
+pip install "cascadeward[viz] @ git+https://github.com/hinanohart/cascadeward@v0.1.0a1"   # + matplotlib plots
 ```
 
-No GPU, no model weights, no network. It consumes logs/metrics offline.
+No GPU, no model weights, no network at runtime. It consumes logs/metrics offline.
 
 ## Use
 

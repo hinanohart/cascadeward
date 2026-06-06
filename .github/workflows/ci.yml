@@ -32,7 +32,11 @@ jobs:
       - name: Lint (ruff)
         run: ruff check src tests
       - name: Honest-marketing gate
-        run: python -m cascadeward._claims README.md src CHANGELOG.md
+        shell: python {0}
+        run: |
+          import sys
+          from cascadeward._claims import main
+          sys.exit(main(["README.md", "src", "CHANGELOG.md"]))
       - name: No-network / no-GPU import guard
         shell: python {0}
         run: |
