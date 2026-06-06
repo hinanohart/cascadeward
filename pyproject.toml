@@ -1,0 +1,59 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "cascadeward"
+version = "0.1.0a1"
+description = "Measure preemption/recompute storm criticality in LLM serving traces via self-exciting point processes (CPU, model-free)."
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "MIT" }
+authors = [{ name = "hinanohart" }]
+keywords = [
+  "llm-serving", "vllm", "sglang", "point-process", "hawkes",
+  "observability", "preemption", "kv-cache", "criticality",
+]
+classifiers = [
+  "Development Status :: 3 - Alpha",
+  "License :: OSI Approved :: MIT License",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+  "Intended Audience :: Developers",
+  "Intended Audience :: System Administrators",
+  "Topic :: System :: Monitoring",
+  "Operating System :: OS Independent",
+]
+dependencies = [
+  "numpy>=1.24",
+  "scipy>=1.10",
+]
+
+[project.optional-dependencies]
+viz = ["matplotlib>=3.7"]
+dev = ["pytest>=7.4", "ruff>=0.5"]
+
+[project.scripts]
+cascadeward = "cascadeward.cli:main"
+
+[project.urls]
+Homepage = "https://github.com/hinanohart/cascadeward"
+Repository = "https://github.com/hinanohart/cascadeward"
+Issues = "https://github.com/hinanohart/cascadeward/issues"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/cascadeward"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "W", "UP", "B"]
+ignore = ["E501"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
+markers = ["slow: marks tests as slow (bootstrap-heavy)"]

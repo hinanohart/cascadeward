@@ -1,0 +1,50 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: test (${{ matrix.os }}, py${{ matrix.python-version }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+        python-version: ["3.11", "3.12", "3.13"]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Install
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+      - name: Lint (ruff)
+        run: ruff check src tests
+      - name: Honest-marketing gate
+        run: python -m cascadeward._claims README.md src CHANGELOG.md
+      - name: No-network / no-GPU import guard
+        shell: python {0}
+        run: |
+          import pathlib, re, sys
+          banned = re.compile(r"^\s*(import|from)\s+(torch|requests|urllib|socket|aiohttp)\b", re.M)
+          bad = []
+          for p in pathlib.Path("src").rglob("*.py"):
+              if banned.search(p.read_text(encoding="utf-8")):
+                  bad.append(str(p))
+          if bad:
+              print("forbidden runtime import (GPU/network) in:", bad)
+              sys.exit(1)
+          print("import guard OK")
+      - name: Tests (incl. SHIP GATE)
+        run: pytest -q

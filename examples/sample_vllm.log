@@ -1,0 +1,7 @@
+INFO 06-06 08:30:00 engine.py:100] vLLM engine started; disable_log_stats=False
+WARNING 06-06 08:30:01 scheduler.py:1680] Sequence group 41 is preempted by PreemptionMode.RECOMPUTE mode because there is not enough KV cache space. This can affect the end-to-end performance. Increase gpu_memory_utilization or tensor_parallel_size to provide more KV cache memory.
+WARNING 06-06 08:30:01 scheduler.py:1680] Sequence group 42 is preempted by PreemptionMode.RECOMPUTE mode because there is not enough KV cache space.
+WARNING 06-06 08:30:02 scheduler.py:1680] Sequence group 43 is preempted by PreemptionMode.SWAP mode because there is not enough KV cache space.
+INFO 06-06 08:30:02 metrics.py:50] Avg generation throughput: 31.2 tokens/s, Running: 48 reqs
+WARNING 06-06 08:30:02 scheduler.py:1680] Sequence group 44 is preempted by PreemptionMode.RECOMPUTE mode because there is not enough KV cache space.
+WARNING 06-06 08:30:04 scheduler.py:1680] Sequence group 47 is preempted by PreemptionMode.RECOMPUTE mode because there is not enough KV cache space.
