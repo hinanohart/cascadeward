@@ -76,21 +76,9 @@ vLLM exposes preemptions **per event only as a scheduler WARNING log line**; the
 
 ## Architecture
 
-```mermaid
-flowchart TD
-    A[Log file or JSONL stream] --> B[Ingest layer]
-    B --> C{Fidelity check}
-    C -->|NATIVE_EVENT or RECONSTRUCTED| D[normalize EventStream]
-    C -->|AGGREGATE| E[Refuse fit UNIDENTIFIED]
-    D --> F[fit_hawkes MLE with mu_t piecewise background]
-    F --> G[bootstrap_ci immigration-birth simulation]
-    G --> H[endogeneity_fraction Zhuang declustering]
-    H --> I[ks_goodness_of_fit time-rescaling KS test]
-    I --> J[self_veto identifiability check]
-    J --> K[decide verdict SUB_CRITICAL SUPER_CRITICAL UNIDENTIFIED]
-    K --> L[qualitative_headroom forecast]
-    L --> M[CriticalityReport versioned JSON or text]
-```
+<div align="center">
+  <img src="docs/architecture.png" alt="cascadeward architecture" width="840">
+</div>
 
 ---
 
@@ -124,3 +112,4 @@ cascadeward pays off when you run vLLM/SGLang yourself, preemption is an actual 
 ## License
 
 MIT © 2026 hinanohart. See [LICENSE](LICENSE).
+

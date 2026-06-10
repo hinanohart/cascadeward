@@ -1,0 +1,51 @@
+direction: down
+explanation: |md
+  ### cascadeward
+  **Measure preemption/recompute storm criticality in LLM-serving traces — on the CPU, model-free, from logs alone.**
+| {near: top-center}
+
+input: "① Log file or JSONL stream" {shape: oval; style: {fill: "#6366f1"; font-color: "#fff"; stroke: "#4338ca"; bold: true; font-size: 18}}
+ingest: "② Ingest layer" {style: {fill: "#0ea5e9"; font-color: "#fff"; stroke: "#0369a1"; bold: true; font-size: 18}}
+input -> ingest: "② ingest"
+
+fidelity: "Fidelity + Normalization" {
+  style: {fill: "#f0fdf4"; stroke: "#10b981"; font-color: "#065f46"; bold: true; font-size: 16}
+  check: "③ Fidelity check\nNATIVE / RECONSTRUCTED\nor AGGREGATE"
+  norm: "③ normalize EventStream"
+  refuse: "Refuse fit\nUNIDENTIFIED"
+  check.style.fill: "#dcfce7"; check.style.font-color: "#065f46"
+  norm.style.fill: "#dcfce7"; norm.style.font-color: "#065f46"
+  refuse.style.fill: "#dcfce7"; refuse.style.font-color: "#065f46"
+}
+ingest -> fidelity.check: "③ route"
+fidelity.check -> fidelity.norm: "pass"
+fidelity.check -> fidelity.refuse: "AGGREGATE"
+
+stats: "Statistical Fitting" {
+  style: {fill: "#fffbeb"; stroke: "#f59e0b"; font-color: "#92400e"; bold: true; font-size: 16}
+  hawkes: "④ fit_hawkes MLE\nmu_t piecewise background"
+  bootstrap: "⑤ bootstrap_ci\nimmigration-birth sim"
+  endo: "⑥ endogeneity_fraction\nZhuang declustering"
+  ks: "⑦ ks_goodness_of_fit\ntime-rescaling KS test"
+  hawkes.style.fill: "#fef3c7"; hawkes.style.font-color: "#92400e"
+  bootstrap.style.fill: "#fef3c7"; bootstrap.style.font-color: "#92400e"
+  endo.style.fill: "#fef3c7"; endo.style.font-color: "#92400e"
+  ks.style.fill: "#fef3c7"; ks.style.font-color: "#92400e"
+}
+fidelity.norm -> stats.hawkes: "④ fit"
+stats.hawkes -> stats.bootstrap: "⑤ simulate"
+stats.bootstrap -> stats.endo: "⑥ decluster"
+stats.endo -> stats.ks: "⑦ test"
+
+verdict: "⑧ decide verdict\nSUB_CRITICAL / SUPER_CRITICAL\n/ UNIDENTIFIED" {style: {fill: "#0ea5e9"; font-color: "#fff"; stroke: "#0369a1"; bold: true; font-size: 16}}
+stats.ks -> verdict: "⑧ verdict"
+
+report: "⑨ CriticalityReport\nversioned JSON or text" {shape: cylinder; style: {fill: "#fdf2f8"; stroke: "#ec4899"; font-color: "#9d174e"; bold: true}}
+verdict -> report: "⑨ write"
+
+legend: "Legend" {
+  near: bottom-center
+  style: {fill: "#f8fafc"; stroke: "#cbd5e1"; font-size: 13}
+  e: "● entry"; c: "● core"; p: "● processing"; b: "● stats"; d: "● output"
+  e.style.font-color: "#4338ca"; c.style.font-color: "#0369a1"; p.style.font-color: "#10b981"; b.style.font-color: "#f59e0b"; d.style.font-color: "#ec4899"
+}
