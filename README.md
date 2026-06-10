@@ -25,6 +25,26 @@ returns `UNIDENTIFIED` rather than a confident-but-meaningless number.
 
 ---
 
+## Architecture
+
+```mermaid
+flowchart TD
+    A[Log file or JSONL stream] --> B[Ingest layer]
+    B --> C{Fidelity check}
+    C -->|NATIVE_EVENT or RECONSTRUCTED| D[normalize EventStream]
+    C -->|AGGREGATE| E[Refuse fit UNIDENTIFIED]
+    D --> F[fit_hawkes MLE with mu_t piecewise background]
+    F --> G[bootstrap_ci immigration-birth simulation]
+    G --> H[endogeneity_fraction Zhuang declustering]
+    H --> I[ks_goodness_of_fit time-rescaling KS test]
+    I --> J[self_veto identifiability check]
+    J --> K[decide verdict SUB_CRITICAL SUPER_CRITICAL UNIDENTIFIED]
+    K --> L[qualitative_headroom forecast]
+    L --> M[CriticalityReport versioned JSON or text]
+```
+
+---
+
 ## What it is *not* (positioning)
 
 cascadeward is easy to confuse with three neighbours; it is none of them:
@@ -49,7 +69,7 @@ pip install "cascadeward[viz] @ git+https://github.com/hinanohart/cascadeward@v0
 
 No GPU, no model weights, no network at runtime. It consumes logs/metrics offline.
 
-## Use
+## Quickstart
 
 ```bash
 # reproduce a synthetic ground-truth recovery (no data needed)
