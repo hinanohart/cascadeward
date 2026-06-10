@@ -2,65 +2,19 @@
 
 **Measure preemption/recompute *storm criticality* in LLM-serving traces — on the CPU, model-free, from logs alone.**
 
-When a KV-cache-bound server (vLLM / SGLang / LMCache) runs hot, a single
-preemption can free blocks that trigger a recompute that evicts another
-sequence that preempts again — a self-exciting cascade that vLLM's own docs
-describe as serving "cascade into instance lockups." cascadeward fits a
-**self-exciting point process (Hawkes / ETAS)** to a trace of preemption events
-and answers one question:
+When a KV-cache-bound server (vLLM / SGLang / LMCache) runs hot, a single preemption can trigger a self-exciting cascade — freeing blocks that cause recompute that evicts another sequence that preempts again. cascadeward fits a **self-exciting point process (Hawkes / ETAS)** to a trace of preemption events and answers one question:
 
-> *Is this cluster sub-critical (a burst is absorbed) or super-critical (one
-> preemption tends to avalanche)? — and is the data even good enough to say?*
+> *Is this cluster sub-critical (a burst is absorbed) or super-critical (one preemption tends to avalanche)? — and is the data even good enough to say?*
 
-It reports a **branching ratio `n`** as a guarded 3-level verdict with a
-confidence interval, an **endogeneity** fraction (is a storm driven by traffic
-or by self-excitation / config?), and an **identifiability self-veto** that
-returns `UNIDENTIFIED` rather than a confident-but-meaningless number.
+It reports a **branching ratio `n`** as a guarded 3-level verdict with a confidence interval, an **endogeneity** fraction (is a storm driven by traffic or by self-excitation / config?), and an **identifiability self-veto** that returns `UNIDENTIFIED` rather than a confident-but-meaningless number.
 
-> ⚠️ **cascadeward is a measurement instrument.** It measures criticality from
-> serving traces. It does not make serving faster, does not prevent or guarantee
-> against cascades, and is not a causal model of the scheduler. Every headline
-> number in this repository is validated on synthetic ground-truth only; it has
-> not been validated against production incidents.
-
----
-
-## Architecture
-
-```mermaid
-flowchart TD
-    A[Log file or JSONL stream] --> B[Ingest layer]
-    B --> C{Fidelity check}
-    C -->|NATIVE_EVENT or RECONSTRUCTED| D[normalize EventStream]
-    C -->|AGGREGATE| E[Refuse fit UNIDENTIFIED]
-    D --> F[fit_hawkes MLE with mu_t piecewise background]
-    F --> G[bootstrap_ci immigration-birth simulation]
-    G --> H[endogeneity_fraction Zhuang declustering]
-    H --> I[ks_goodness_of_fit time-rescaling KS test]
-    I --> J[self_veto identifiability check]
-    J --> K[decide verdict SUB_CRITICAL SUPER_CRITICAL UNIDENTIFIED]
-    K --> L[qualitative_headroom forecast]
-    L --> M[CriticalityReport versioned JSON or text]
-```
-
----
-
-## What it is *not* (positioning)
-
-cascadeward is easy to confuse with three neighbours; it is none of them:
-
-| Neighbour | What that does | cascadeward |
-|---|---|---|
-| **KV token-eviction** (H2O / Scissorhands; our own `cachelens`) | decides *which tokens to drop* | measures the *dynamics of the dropping*, not the policy |
-| **Metastable-failure modelling** (MSF-Model, arXiv:2309.16181; HotOS'25) | hand-builds a **CTMC** of the system to predict metastable regions | fits the branching ratio **non-parametrically from logs** — no hand model. *Honest moat:* if you are willing to hand-write a serving CTMC you can get an `n`-equivalent; cascadeward's edge is being model-free and one command. |
-| **Survival / competing-risks** (our own `hazardloop`) | *when does a request finish / fail* | a self-exciting **branching** process (immigration + offspring), different vocabulary and different question |
+> ⚠️ **cascadeward is a measurement instrument.** It measures criticality from serving traces. It does not make serving faster, does not prevent or guarantee against cascades, and is not a causal model of the scheduler. Every headline number in this repository is validated on synthetic ground-truth only; it has not been validated against production incidents.
 
 ---
 
 ## Install
 
-`cascadeward` is an early `v0.1.0a2` pre-release published on GitHub (it is not
-on PyPI yet). Install it straight from the tagged release:
+`cascadeward` is an early `v0.1.0a2` pre-release published on GitHub (it is not on PyPI yet). Install it straight from the tagged release:
 
 ```bash
 pip install "git+https://github.com/hinanohart/cascadeward@v0.1.0a2"          # core: numpy + scipy, CPU-only
@@ -94,7 +48,7 @@ print(report.verdict, report.branching_ratio_n)
 ### Exit codes (drop-in for CI / Nagios gates)
 
 | code | meaning |
-|---|---|
+|------|---------|
 | `0`  | `SUB_CRITICAL` — healthy, bursts absorbed |
 | `10` | `SUPER_CRITICAL` — one preemption tends to avalanche |
 | `20` | `UNIDENTIFIED` — identifiability veto (a normal, honest output) |
@@ -103,59 +57,69 @@ print(report.verdict, report.branching_ratio_n)
 
 ### Input formats (`Fidelity` is first-class)
 
-vLLM exposes preemptions **per event only as a scheduler WARNING log line**; the
-Prometheus metric `vllm:num_preemptions_total` is a cumulative *Counter*, not a
-per-event stream. cascadeward tracks this in the data model:
+vLLM exposes preemptions **per event only as a scheduler WARNING log line**; the Prometheus metric `vllm:num_preemptions_total` is a cumulative *Counter*, not a per-event stream. cascadeward tracks this in the data model:
 
 - `NATIVE_EVENT` — true per-event source (`vllm_log`, generic `jsonl`, `synthetic`).
 - `RECONSTRUCTED` — counter-diff → probabilistic placement → **veto tightened** *(Prometheus adapter is v0.2)*.
 - `AGGREGATE` — binned only → **fit refused** (no fabricated point process).
 
-## Why no "QPS-to-critical" number? (a deliberate omission)
-
-For the exponential kernel the branching ratio `n = α` is **independent of the
-background rate `μ`**. So naively scaling arrival load does *not* move `n` toward
-1, and any "increase QPS by X% to hit criticality" number would be unfounded.
-v0.1 reports headroom **qualitatively** (current regime + sensitivity sign). A
-quantitative headroom requires modelling `α(cache_pressure)` across several load
-points and is on the v0.2 roadmap.
+---
 
 ## How it works
 
 1. **Ingest** a trace → canonical marked event stream (`events.py`).
-2. **Fit** an exponential Hawkes with a **time-varying piecewise-constant
-   background `μ(t)`** by multi-start MLE (the time-varying background matters:
-   a single *stationary* kernel is biased under non-stationarity — Filimonov &
-   Sornette 2015, arXiv:1308.6756). *v0.1 fits the unmarked process; event marks
-   (`freed_blocks`, …) are captured for mark-weighted excitation in v0.2.*
+2. **Fit** an exponential Hawkes with a **time-varying piecewise-constant background `μ(t)`** by multi-start MLE (the time-varying background matters: a single *stationary* kernel is biased under non-stationarity — Filimonov & Sornette 2015, arXiv:1308.6756). *v0.1 fits the unmarked process; event marks (`freed_blocks`, …) are captured for mark-weighted excitation in v0.2.*
 3. **Bootstrap** a CI for `n` by exact immigration-birth simulation + refit.
 4. **Decluster** (Zhuang background probability) → endogeneity.
-5. **Self-veto** (Filimonov–Sornette) on too-few events, wide/critical-crossing
-   CI, near-critical instability, unidentified timescale, kernel
-   misspecification (time-rescaling KS), or bootstrap-explosion bias (most
-   replicates ran away yet the CI came back sub-critical) → possibly
-   `UNIDENTIFIED`.
+5. **Self-veto** (Filimonov–Sornette) on too-few events, wide/critical-crossing CI, near-critical instability, unidentified timescale, kernel misspecification (time-rescaling KS), or bootstrap-explosion bias → possibly `UNIDENTIFIED`.
 6. **Report** a versioned JSON / text verdict.
+
+## Architecture
+
+```mermaid
+flowchart TD
+    A[Log file or JSONL stream] --> B[Ingest layer]
+    B --> C{Fidelity check}
+    C -->|NATIVE_EVENT or RECONSTRUCTED| D[normalize EventStream]
+    C -->|AGGREGATE| E[Refuse fit UNIDENTIFIED]
+    D --> F[fit_hawkes MLE with mu_t piecewise background]
+    F --> G[bootstrap_ci immigration-birth simulation]
+    G --> H[endogeneity_fraction Zhuang declustering]
+    H --> I[ks_goodness_of_fit time-rescaling KS test]
+    I --> J[self_veto identifiability check]
+    J --> K[decide verdict SUB_CRITICAL SUPER_CRITICAL UNIDENTIFIED]
+    K --> L[qualitative_headroom forecast]
+    L --> M[CriticalityReport versioned JSON or text]
+```
+
+---
+
+## What it is *not* (positioning)
+
+cascadeward is easy to confuse with three neighbours; it is none of them:
+
+| Neighbour | What that does | cascadeward |
+|-----------|---------------|-------------|
+| **KV token-eviction** (H2O / Scissorhands; our own `cachelens`) | decides *which tokens to drop* | measures the *dynamics of the dropping*, not the policy |
+| **Metastable-failure modelling** (MSF-Model, arXiv:2309.16181; HotOS'25) | hand-builds a **CTMC** of the system to predict metastable regions | fits the branching ratio **non-parametrically from logs** — no hand model. *Honest moat:* if you are willing to hand-write a serving CTMC you can get an `n`-equivalent; cascadeward's edge is being model-free and one command. |
+| **Survival / competing-risks** (our own `hazardloop`) | *when does a request finish / fail* | a self-exciting **branching** process (immigration + offspring), different vocabulary and different question |
+
+---
+
+## Why no "QPS-to-critical" number? (a deliberate omission)
+
+For the exponential kernel the branching ratio `n = α` is **independent of the background rate `μ`**. So naively scaling arrival load does *not* move `n` toward 1, and any "increase QPS by X% to hit criticality" number would be unfounded. v0.1 reports headroom **qualitatively** (current regime + sensitivity sign). A quantitative headroom requires modelling `α(cache_pressure)` across several load points and is on the v0.2 roadmap.
 
 ## Honest limits
 
-- Branching-ratio identifiability near `n ≈ 1` is a known minefield; the CI and
-  self-veto **mitigate, they do not remove it**. "Cannot certify" is sometimes
-  the correct output.
-- A memoryless-offspring Hawkes is an **approximation** of a deterministic
-  state-machine scheduler — an early-warning / config-ranking instrument, not a
-  causal model.
-- Trace quality is load-bearing. Coarse timestamps or counter-reconstruction
-  lower fidelity and tighten the veto; cascadeward fails loudly rather than
-  fabricating.
-- Validated on **synthetic ground-truth** only. No production-incident
-  validation is claimed.
+- Branching-ratio identifiability near `n ≈ 1` is a known minefield; the CI and self-veto **mitigate, they do not remove it**. "Cannot certify" is sometimes the correct output.
+- A memoryless-offspring Hawkes is an **approximation** of a deterministic state-machine scheduler — an early-warning / config-ranking instrument, not a causal model.
+- Trace quality is load-bearing. Coarse timestamps or counter-reconstruction lower fidelity and tighten the veto; cascadeward fails loudly rather than fabricating.
+- Validated on **synthetic ground-truth** only. No production-incident validation is claimed.
 
 ## Scope of usefulness
 
-cascadeward pays off when you run vLLM/SGLang yourself, preemption is an actual
-pain at your load, and your logs are granular enough to fit. That is a
-lab-to-mid-scale audience by design.
+cascadeward pays off when you run vLLM/SGLang yourself, preemption is an actual pain at your load, and your logs are granular enough to fit. That is a lab-to-mid-scale audience by design.
 
 ## License
 
